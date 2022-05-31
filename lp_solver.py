@@ -1,4 +1,6 @@
+import argparse
 from ortools.linear_solver import pywraplp
+from os.path import exists
 
 def LP_solver(objective, constraint):
     # Instantiate a GLOP solver
@@ -49,79 +51,30 @@ def LP_solver(objective, constraint):
 
     return [x_i.solution_value() for x_i in x]
 
-def calculate_multiple_budget(dag, D, M):
-    sl_num = len(dag.sl_nodes)
-    node_num = len(dag.node_set)
-    sl_dict = {}
-    for idx, sl_idx in enumerate(dag.sl_nodes):
-        sl_dict[sl_idx] = node_num + idx
-
-    ### var
-    # est(v_i), c(v_s), W, L
-    # var #: sl_num + node_num + 2 (W, L)
-
-    const_list = []
-    leaf_node_idx = 0
-
-    # est constraint
-    for i, node in enumerate(dag.node_set):
-        if len(node.succ) == 0:
-            leaf_node_idx = i
-        if len(node.pred) == 0:
-            if i in sl_dict:
-                continue
-            const = [0] * (sl_num + node_num + 2)
-            const[i] = 1
-            const += ['eq', node.exec_t]
-            const_list.append(const)
-        else:
-            for pred_idx in node.pred:
-                const = [0] * (sl_num + node_num + 2)
-                const[i] = 1
-                const[pred_idx] = -1
-                if pred_idx in sl_dict:
-                    const[sl_dict[pred_idx]] = -1
-                    const += ['ge', 0]
-                else:
-                    const += ['ge', dag.node_set[pred_idx].exec_t]
-                const_list.append(const)
-
-    # total work
-    const = [0] * (sl_num + node_num + 2)
-    W = sum([node.exec_t for node in dag.node_set if node.tid not in sl_dict])
-    for i in range(sl_num):
-        const[node_num + i] = -1
-    const[-2] = 1
-    const += ['eq', W]
-    const_list.append(const)
-
-    # span
-    const = [0] * (sl_num + node_num + 2)
-    const[-1] = 1
-    const[leaf_node_idx] = -1
-    const += ['ge', dag.node_set[leaf_node_idx].exec_t]
-    const_list.append(const)
-    
-    # deadline
-    const = [0] * (sl_num + node_num + 2)
-    const[-2] = 1/M
-    const[-1] = (1 - 1/M)
-    const += ['le', D]
-    const_list.append(const)
-
-    ### Objective
-    obj = [0] * (sl_num + node_num + 2)
-    for i in range(sl_num):
-        obj[node_num + i] = 1
-
-    sol = LP_solver(obj, const_list)
-    if len(sol) == 0:
-        return []
-
-    return [round(v) for v in sol[node_num:node_num+sl_num]]
-        
-
 if __name__ == "__main__":
-    const = [[1, 2, 'le', 14], [3, -1, 'ge', 0], [1, -1, 'le', 2]]
-    obj = [3, 4]
-    LP_solver(obj, const)
+    parser = argparse.ArgumentParser(description='LP Solver')
+    parser.add_argument('--input', '-i', type=str, help='input csv file', required=True)
+    parser.add_argument('--deli', '-d', type=str, help='delimiter', default=' ')
+
+    args = parser.parse_args()
+
+    if not exists(args.input):
+        print('Input file does not exist:', args.input)
+        exit(1)
+
+    const = []
+    
+    with open(args.input) as f:
+        var_num, const_num = map(int, f.readline().rstrip().split(args.deli))
+
+        obj = list(map(float, f.readline().rstrip().split(args.deli)))
+        for _ in range(const_num):
+            line = f.readline().rstrip().split(args.deli)
+            for i in range(var_num+2):
+                if i != var_num:
+                    line[i] = float(line[i])
+            
+            const.append(line)
+
+    ans = LP_solver(obj, const)
+    print(ans)
