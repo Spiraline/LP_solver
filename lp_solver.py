@@ -2,7 +2,7 @@ import argparse
 from ortools.linear_solver import pywraplp
 from os.path import exists
 
-def LP_solver(objective, constraint):
+def LP_solver(objective, constraint, verbose):
     # Instantiate a GLOP solver
     solver = pywraplp.Solver.CreateSolver('GLOP')
 
@@ -21,9 +21,10 @@ def LP_solver(objective, constraint):
             solver.Add(eq <= coeff[-1])
         else:
             solver.Add(eq == coeff[-1])
-    
-    # print('Number of variables =', solver.NumVariables())
-    # print('Number of constraints =', solver.NumConstraints())
+
+    if verbose:
+        print('Number of variables =', solver.NumVariables())
+        print('Number of constraints =', solver.NumConstraints())
 
     obj_eq = 0
     for i, x_i in enumerate(x):
@@ -36,25 +37,27 @@ def LP_solver(objective, constraint):
     status = solver.Solve()
 
     if status == pywraplp.Solver.OPTIMAL:
-        pass
-        # print('Solution:')
-        # print('Objective value =', solver.Objective().Value())
-        # for i, x_i in enumerate(x):
-        #     print('x' + str(i), '=', x_i.solution_value())
+        if verbose:
+            print('[Solution]')
+            print('Objective value =', solver.Objective().Value())
+            for i, x_i in enumerate(x):
+                print('x' + str(i), '=', x_i.solution_value())
     else:
-        return []
-        # print('The problem does not have an optimal solution.')
+        if verbose:
+            print('The problem does not have an optimal solution.')
+        return [], -1
 
-    # print('\nAdvanced usage:')
-    # print('Problem solved in %f milliseconds' % solver.wall_time())
-    # print('Problem solved in %d iterations' % solver.iterations())
+    if verbose:
+        print('Problem solved in %f milliseconds' % solver.wall_time())
+        print('Problem solved in %d iterations' % solver.iterations())
 
-    return [x_i.solution_value() for x_i in x]
+    return [x_i.solution_value() for x_i in x], solver.Objective().Value()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='LP Solver')
     parser.add_argument('--input', '-i', type=str, help='input csv file', required=True)
     parser.add_argument('--deli', '-d', type=str, help='delimiter', default=' ')
+    parser.add_argument('--verbose', '-v', action='store_true', help='enable verbose')
 
     args = parser.parse_args()
 
@@ -76,5 +79,5 @@ if __name__ == "__main__":
             
             const.append(line)
 
-    ans = LP_solver(obj, const)
-    print(ans)
+    optimal_var, optimal_obj = LP_solver(obj, const, args.verbose)
+    print(optimal_var, optimal_obj)
