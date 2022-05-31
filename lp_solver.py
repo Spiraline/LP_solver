@@ -2,12 +2,12 @@ import argparse
 from ortools.linear_solver import pywraplp
 from os.path import exists
 
-def LP_solver(objective, constraint, verbose):
+def LP_solver(objective, constraint, isMax, verbose):
     # Instantiate a GLOP solver
     solver = pywraplp.Solver.CreateSolver('GLOP')
 
     # Create the variables and let them take on any non-negative value.
-    x = [solver.NumVar(0, solver.infinity(), 'x' + str(i)) for i in range(len(objective))]
+    x = [solver.NumVar(-solver.infinity(), solver.infinity(), 'x' + str(i)) for i in range(len(objective))]
 
     # Constraints
     for coeff in constraint:
@@ -31,7 +31,10 @@ def LP_solver(objective, constraint, verbose):
         if objective[i] != 0:
             obj_eq += objective[i] * x_i
 
-    solver.Maximize(obj_eq)
+    if isMax:
+        solver.Maximize(obj_eq)
+    else:
+        solver.Minimize(obj_eq)
 
     # Solve the system.
     status = solver.Solve()
@@ -70,7 +73,18 @@ if __name__ == "__main__":
     with open(args.input) as f:
         var_num, const_num = map(int, f.readline().rstrip().split(args.deli))
 
-        obj = list(map(float, f.readline().rstrip().split(args.deli)))
+        obj_line = f.readline().rstrip().split(args.deli)
+
+        if obj_line[0] == 'max':
+            isMax = True
+        elif obj_line[0] == 'min':
+            isMax = False
+        else:
+            print('2nd line should start with min/max')
+            exit(1)
+
+        obj = [float(e) for e in obj_line[1:]]
+
         for _ in range(const_num):
             line = f.readline().rstrip().split(args.deli)
             for i in range(var_num+2):
@@ -79,5 +93,5 @@ if __name__ == "__main__":
             
             const.append(line)
 
-    optimal_var, optimal_obj = LP_solver(obj, const, args.verbose)
+    optimal_var, optimal_obj = LP_solver(obj, const, isMax, args.verbose)
     print(optimal_var, optimal_obj)
