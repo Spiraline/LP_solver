@@ -45,7 +45,7 @@ def LP_solver(objective, constraint, verbose):
     else:
         if verbose:
             print('The problem does not have an optimal solution.')
-        return [], -1
+        return [], 'No optimal solution'
 
     if verbose:
         print('Problem solved in %f milliseconds' % solver.wall_time())
@@ -55,7 +55,7 @@ def LP_solver(objective, constraint, verbose):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='LP Solver')
-    parser.add_argument('--input', '-i', type=str, help='input csv file', required=True)
+    parser.add_argument('--input', '-i', type=str, help='input file', required=True)
     parser.add_argument('--deli', '-d', type=str, help='delimiter', default=' ')
     parser.add_argument('--verbose', '-v', action='store_true', help='enable verbose')
 
